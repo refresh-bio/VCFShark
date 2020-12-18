@@ -1,0 +1,17 @@
+FROM ubuntu:18.04
+
+RUN apt-get update && apt-get upgrade --yes && \
+    apt-get --yes install build-essential git cmake wget libcurl4-gnutls-dev zlibc zlib1g zlib1g-dev libbz2-dev liblzma-dev 
+	
+RUN mkdir -p /home/vcfshark 
+	
+WORKDIR /home/vcfshark
+
+RUN git clone https://github.com/refresh-bio/VCFShark.git
+
+WORKDIR /home/vcfshark/VCFShark
+
+RUN ./install.sh
+
+RUN make
+

@@ -1,0 +1,18 @@
+FROM centos:8
+
+RUN  yum -y update  && yum -y upgrade &&\ 
+yum -y install make  gcc gcc-c++ git wget libcurl-devel zlib-devel bzip2  bzip2-devel xz-devel 
+
+	
+RUN mkdir -p /home/vcfshark 
+	
+WORKDIR /home/vcfshark
+
+RUN git clone https://github.com/refresh-bio/VCFShark.git  
+
+WORKDIR /home/vcfshark/VCFShark
+
+RUN ./install.sh
+
+RUN make
+
