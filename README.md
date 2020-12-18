@@ -9,7 +9,7 @@ Requirements
 
 VCFShark requires:
 
-* A modern, C++11 ready compiler such as `g++` version 4.9 or higher or `clang` version 3.2 or higher.
+* A modern, C++14 ready compiler such as `g++` version 7.2 or higher or `clang` version 3.4 or higher.
 * A 64-bit operating system. Either Mac OS X or Linux are currently supported.
 
 Installation
