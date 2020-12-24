@@ -9,7 +9,7 @@ HTS_LIB_DIR=htslib/lib
 
 CC 	= g++
 CFLAGS	= -Wall -O3 -m64 -std=c++14 -pthread -mavx -I $(HTS_INCLUDE_DIR) -I $(INCLUDE_DIR) -fpermissive
-CLINK	= -lm -O3 -std=c++14 -pthread -mavx -lz -lbz2 -lcurl -llzma -L $(LIBS_DIR) 
+CLINK	= -lm -O3 -std=c++14 -pthread -mavx -lz -lbz2 -lcurl -lssl -lcrypto -llzma -L $(LIBS_DIR) 
 
 ifdef MSVC     # Avoid the MingW/Cygwin sections
     uname_S := Windows
@@ -73,8 +73,8 @@ clean:
 install:
 	mkdir -p -m 755 $(exec_prefix)/bin
 	cp vcfshark $(exec_prefix)/bin/
-	
+
 uninstall:
 	rm  $(exec_prefix)/bin/vcfshark
-	
+
 
