@@ -1,0 +1,2 @@
+##INFO=<ID=HOM_CONSANGUINEOUS,Number=.,Type=String,Description=".">
+##FILTER=<ID=AC_Adj0_Filter,Description=".">

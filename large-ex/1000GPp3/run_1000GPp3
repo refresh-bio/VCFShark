@@ -1,0 +1,20 @@
+# This script:
+# 1. Downloads chr22 VCF file from 1000GPp3
+# 2. Compress the VCF file with VCFShark
+# 3. Decompress the archive with VCFShark
+# 4. Checks if the input VCF file and the VCF file decompressed from the VCFShark archive contain the same data.
+
+#Path to VCFShark
+VCFSHARK=../../vcfshark
+
+echo "Downloading the VCF file"
+wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz
+
+echo "VCFShark compression"
+$VCFSHARK compress  ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz  1000GPp3_chr22.vcfshark
+
+echo "VCFShark decompression"
+$VCFSHARK decompress -b  1000GPp3_chr22.vcfshark   1000GPp3_chr22.vcfshark.decomp.vcf.gz 
+
+echo "Checking if compression/decompression works"
+../check ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz 1000GPp3_chr22.vcfshark.decomp.vcf.gz 

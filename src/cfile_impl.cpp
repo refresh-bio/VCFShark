@@ -2,9 +2,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include <memory>
@@ -15,116 +15,6 @@ using namespace std;
 
 #include "cfile.h"
 #include "utils.h"
-
-// ************************************************************************************
-void CCompressedFile::append(vector<uint8_t>& v_comp, string x)
-{
-	v_comp.insert(v_comp.end(), x.begin(), x.end());
-	v_comp.emplace_back(0);
-}
-
-// ************************************************************************************
-void CCompressedFile::append(vector<uint8_t>& v_comp, int64_t x)
-{
-	int n_bytes;
-
-	if (x < 0)
-	{
-		x = -x;
-		n_bytes = 8;
-	}
-	else
-		n_bytes = 0;
-
-	auto tmp = x;
-
-	for (; tmp; ++n_bytes)
-		tmp >>= 8;
-
-	v_comp.emplace_back(n_bytes);
-
-	for (int i = 0; i < (n_bytes & 7); ++i)
-	{
-		v_comp.emplace_back(x & 0xff);
-		x >>= 8;
-	}
-}
-
-// ************************************************************************************
-void CCompressedFile::append_fixed(vector<uint8_t>& v_comp, uint64_t x, int n)
-{
-	for (int i = 0; i < n; ++i)
-	{
-		v_comp.emplace_back(x & 0xff);
-		x >>= 8;
-	}
-}
-
-// ************************************************************************************
-void CCompressedFile::read(vector<uint8_t>& v_comp, size_t& pos, string& x)
-{
-	x.clear();
-
-	for (; pos < v_comp.size() && v_comp[pos] != 0; ++pos)
-		x.push_back(v_comp[pos]);
-	++pos;
-}
-
-// ************************************************************************************
-void CCompressedFile::read(vector<uint8_t>& v_comp, size_t& pos, int64_t& x)
-{
-	uint32_t n_bytes = v_comp[pos++];
-
-	int64_t sign = 1;
-
-	if (n_bytes >= 8)
-	{
-		sign = -1;
-		n_bytes -= 8;
-	}
-
-	x = 0;
-	int shift = 0;
-
-	for (uint32_t i = 0; i < n_bytes; ++i)
-	{
-		x += ((int64_t)v_comp[pos++]) << shift;
-		shift += 8;
-	}
-
-	x *= sign;
-}
-
-// ************************************************************************************
-void CCompressedFile::read(vector<uint8_t>& v_comp, size_t& pos, uint64_t& x)
-{
-	int64_t tmp;
-
-	read(v_comp, pos, tmp);
-	x = (uint64_t)tmp;
-}
-
-// ************************************************************************************
-void CCompressedFile::read(vector<uint8_t>& v_comp, size_t& pos, uint32_t& x)
-{
-	int64_t tmp;
-
-	read(v_comp, pos, tmp);
-	x = (uint32_t)tmp;
-}
-
-// ************************************************************************************
-void CCompressedFile::read_fixed(vector<uint8_t>& v_comp, size_t& pos, uint64_t& x, int n)
-{
-	int shift = 0;
-	x = 0;
-
-	for (int i = 0; i < n; ++i)
-	{
-		x += ((uint64_t)v_comp[pos++]) << shift;
-		shift += 8;
-	}
-}
 
 // ************************************************************************************
 bool CCompressedFile::load_descriptions()
@@ -272,6 +162,17 @@ void CCompressedFile::lock_coder_compressor(SPackage& pck)
 
 		return (int) v_coder_part_ids[sid] == pck.part_id;
 		});
+}
+
+// ************************************************************************************
+bool CCompressedFile::check_coder_compressor(SPackage& pck)
+{
+	unique_lock<mutex> lck(mtx_v_coder);
+	int sid = pck.key_id;
+	if (pck.type == SPackage::package_t::db)
+		sid = no_keys + pck.db_id;
+
+	return (int) v_coder_part_ids[sid] == pck.part_id;
 }
 
 // ************************************************************************************
@@ -954,32 +855,10 @@ void CCompressedFile::decompress_gt(SPackage* pck, size_t raw_size)
 }
 
 // ************************************************************************************
-CCompressedFile::ctx_map_e_t::value_type CCompressedFile::find_rce_coder(context_t ctx, uint32_t no_symbols, uint32_t max_log_counter)
-{
-	auto p = rce_coders.find(ctx);
-
-	if (p == nullptr)
-		rce_coders.insert(ctx, p = new CRangeCoderModel<CSimpleModel, CVectorIOStream>(rce, no_symbols, max_log_counter, 1 << max_log_counter, nullptr, 1, true));
-
-	return p;
-}
-
-// ************************************************************************************
-CCompressedFile::ctx_map_d_t::value_type CCompressedFile::find_rcd_coder(context_t ctx, uint32_t no_symbols, uint32_t max_log_counter)
-{
-	auto p = rcd_coders.find(ctx);
-
-	if (p == nullptr)
-		rcd_coders.insert(ctx, p = new CRangeCoderModel<CSimpleModel, CVectorIOStream>(rcd, no_symbols, max_log_counter, 1 << max_log_counter, nullptr, 1, false));
-
-	return p;
-}
-
-// ************************************************************************************
 void CCompressedFile::encode_run_len(uint32_t symbol, uint32_t len)
 {
 	// Encode symbol
-	auto rc_sym = find_rce_coder(ctx_symbol + context_symbol_flag, 16, 15);
+	auto rc_sym = find_rce_coder(rcd_coders_rl_sym, ctx_symbol + context_symbol_flag);
 
 	if (symbol < 15)
 		rc_sym->Encode(symbol);
@@ -1006,14 +885,14 @@ void CCompressedFile::encode_run_len(uint32_t symbol, uint32_t len)
 	ctx_symbol += symbol;
 	ctx_symbol &= context_symbol_mask;
 
-	rce_coders.prefetch(ctx_symbol + context_symbol_flag);
+	rce_coders_rl_sym.prefetch(ctx_symbol + context_symbol_flag);
 
 	ctx_prefix <<= 4;
 	ctx_prefix += (context_t)symbol;
 	ctx_prefix &= context_prefix_mask;
 
 	// Encode run length
-	auto rc_p = find_rce_coder(ctx_prefix + context_prefix_flag, 11, 10);
+	auto rc_p = find_rce_coder(rce_coders_rl_pref, ctx_prefix + context_prefix_flag);
 
 	uint32_t prefix = ilog2(len);
 
@@ -1021,7 +900,7 @@ void CCompressedFile::encode_run_len(uint32_t symbol, uint32_t len)
 	ctx_prefix += (context_t)prefix;
 	ctx_prefix &= context_prefix_mask;
 
-	rce_coders.prefetch(ctx_prefix + context_prefix_flag);
+	rce_coders_rl_pref.prefetch(ctx_prefix + context_prefix_flag);
 
 	if (prefix < 2)
 		rc_p->Encode(prefix);
@@ -1033,8 +912,33 @@ void CCompressedFile::encode_run_len(uint32_t symbol, uint32_t len)
 		ctx_suf += (context_t)prefix;
 		uint32_t max_value_for_this_prefix = 1u << (prefix - 1);
 
-		auto rc_s = find_rce_coder(ctx_suf, max_value_for_this_prefix, 15);
-		rc_s->Encode(len - max_value_for_this_prefix);
+		switch (max_value_for_this_prefix)
+		{
+		case 2:
+			find_rce_coder(rce_coders_rl_suf2, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		case 4:
+			find_rce_coder(rce_coders_rl_suf4, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		case 8:
+			find_rce_coder(rce_coders_rl_suf8, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		case 16:
+			find_rce_coder(rce_coders_rl_suf16, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		case 32:
+			find_rce_coder(rce_coders_rl_suf32, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		case 64:
+			find_rce_coder(rce_coders_rl_suf64, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		case 128:
+			find_rce_coder(rce_coders_rl_suf128, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		case 256:
+			find_rce_coder(rce_coders_rl_suf256, ctx_suf)->Encode(len - max_value_for_this_prefix);
+			break;
+		}
 	}
 	else
 	{
@@ -1042,14 +946,14 @@ void CCompressedFile::encode_run_len(uint32_t symbol, uint32_t len)
 
 		context_t ctx_large1 = context_large_value1_flag;
 		ctx_large1 += ((context_t)symbol) << 16;
-		auto rc_l1 = find_rce_coder(ctx_large1, 256, 15);
+		auto rc_l1 = find_rce_coder(rce_coders_large_val, ctx_large1);
 		uint32_t lv1 = (len >> 16) & 0xff;
 		rc_l1->Encode(lv1);
 
 		context_t ctx_large2 = context_large_value2_flag;
 		ctx_large2 += ((context_t)symbol) << 16;
 		ctx_large2 += (context_t)lv1;
-		auto rc_l2 = find_rce_coder(ctx_large2, 256, 15);
+		auto rc_l2 = find_rce_coder(rce_coders_large_val, ctx_large2);
 		uint32_t lv2 = (len >> 8) & 0xff;
 		rc_l2->Encode(lv2);
 
@@ -1057,7 +961,7 @@ void CCompressedFile::encode_run_len(uint32_t symbol, uint32_t len)
 		ctx_large3 += ((context_t)symbol) << 16;
 		ctx_large3 += ((context_t)lv1) << 8;
 		ctx_large3 += (context_t)lv2;
-		auto rc_l3 = find_rce_coder(ctx_large3, 256, 15);
+		auto rc_l3 = find_rce_coder(rce_coders_large_val, ctx_large3);
 		uint32_t lv3 = len & 0xff;
 		rc_l3->Encode(lv3);
 	}
@@ -1067,7 +971,7 @@ void CCompressedFile::encode_run_len(uint32_t symbol, uint32_t len)
 void CCompressedFile::decode_run_len(uint32_t& symbol, uint32_t& len)
 {
 	// Decode symbol
-	auto rc_sym = find_rcd_coder(ctx_symbol + context_symbol_flag, 16, 15);
+	auto rc_sym = find_rcd_coder(rcd_coders_rl_sym, ctx_symbol + context_symbol_flag);
 	symbol = (uint8_t)rc_sym->Decode();
 
 	if (symbol == 15)
@@ -1089,14 +993,14 @@ void CCompressedFile::decode_run_len(uint32_t& symbol, uint32_t& len)
 	ctx_symbol += (context_t)symbol_normalized;
 	ctx_symbol &= context_symbol_mask;
 
-	rcd_coders.prefetch(ctx_symbol + context_symbol_flag);
+	rcd_coders_rl_sym.prefetch(ctx_symbol + context_symbol_flag);
 
 	ctx_prefix <<= 4;
 	ctx_prefix += (context_t)symbol_normalized;
 	ctx_prefix &= context_prefix_mask;
 
 	// Decode run length
-	auto rc_p = find_rcd_coder(ctx_prefix + context_prefix_flag, 11, 10);
+	auto rc_p = find_rcd_coder(rcd_coders_rl_pref, ctx_prefix + context_prefix_flag);
 
 	uint32_t prefix = rc_p->Decode();
 
@@ -1109,27 +1013,52 @@ void CCompressedFile::decode_run_len(uint32_t& symbol, uint32_t& len)
 		ctx_suf += (context_t)prefix;
 		uint32_t max_value_for_this_prefix = 1u << (prefix - 1);
 
-		auto rc_s = find_rcd_coder(ctx_suf, max_value_for_this_prefix, 15);
-		len = max_value_for_this_prefix + rc_s->Decode();
+		switch (max_value_for_this_prefix)
+		{
+		case 2:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf2, ctx_suf)->Decode();
+			break;
+		case 4:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf4, ctx_suf)->Decode();
+			break;
+		case 8:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf8, ctx_suf)->Decode();
+			break;
+		case 16:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf16, ctx_suf)->Decode();
+			break;
+		case 32:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf32, ctx_suf)->Decode();
+			break;
+		case 64:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf64, ctx_suf)->Decode();
+			break;
+		case 128:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf128, ctx_suf)->Decode();
+			break;
+		case 256:
+			len = max_value_for_this_prefix + find_rcd_coder(rcd_coders_rl_suf256, ctx_suf)->Decode();
+			break;
+		}
 	}
 	else
 	{
 		context_t ctx_large1 = context_large_value1_flag;
 		ctx_large1 += ((context_t)symbol_normalized) << 16;
-		auto rc_l1 = find_rcd_coder(ctx_large1, 256, 15);
+		auto rc_l1 = find_rcd_coder(rcd_coders_large_val, ctx_large1);
 		uint32_t lv1 = rc_l1->Decode();
 
 		context_t ctx_large2 = context_large_value2_flag;
 		ctx_large2 += ((context_t)symbol_normalized) << 16;
 		ctx_large2 += (context_t)lv1;
-		auto rc_l2 = find_rcd_coder(ctx_large2, 256, 15);
+		auto rc_l2 = find_rcd_coder(rcd_coders_large_val, ctx_large2);
 		uint32_t lv2 = rc_l2->Decode();
 
 		context_t ctx_large3 = context_large_value3_flag;
 		ctx_large3 += ((context_t)symbol_normalized) << 16;
 		ctx_large3 += ((context_t)lv1) << 8;
 		ctx_large3 += (context_t)lv2;
-		auto rc_l3 = find_rcd_coder(ctx_large3, 256, 15);
+		auto rc_l3 = find_rcd_coder(rcd_coders_large_val, ctx_large3);
 		uint32_t lv3 = rc_l3->Decode();
 
 		len = (lv1 << 16) + (lv2 << 8) + lv3;
@@ -1141,7 +1070,7 @@ void CCompressedFile::decode_run_len(uint32_t& symbol, uint32_t& len)
 	ctx_prefix += (context_t)prefix;
 	ctx_prefix &= context_prefix_mask;
 
-	rcd_coders.prefetch(ctx_prefix + context_prefix_flag);
+	rcd_coders_rl_pref.prefetch(ctx_prefix + context_prefix_flag);
 }
 
 // ******************************************************************************
@@ -1180,13 +1109,13 @@ bool CCompressedFile::OptimizeDB(function_size_graph_t& _function_size_graph, fu
 //	process_function_data(no_keys, v_data_nodes, v_data_edges);
 	process_function_data_eq_only(no_keys, v_data_nodes, v_data_edges);
 
-	// Zapis opisu size i data
+	// Store description of size and data
 	store_nodes("size_nodes", v_size_nodes);
 	store_edges("size_edges", v_size_edges, (int) v_size_nodes.size());
 	store_nodes("data_nodes", v_data_nodes);
 	store_edges("data_edges", v_data_edges, (int) v_data_nodes.size());
 
-	// Przetwarzanie pól kluczy
+	// Process key fields
 	for (uint32_t i = 0; i < no_keys; ++i)
 		if (v_size_nodes[i].second)
 			copy_stream("key_" + to_string(v_size_nodes[i].first) + "_size");

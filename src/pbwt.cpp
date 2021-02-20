@@ -2,9 +2,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include "pbwt.h"
@@ -59,7 +59,6 @@ void CPBWT::adjust_size(uint32_t new_size)
 			});
 
 		v_perm_prev.erase(new_end, v_perm_prev.end());
-
 	}
 }
 
@@ -98,8 +97,7 @@ bool CPBWT::StartReverse(const size_t _no_items, const size_t _neglect_limit)
 // ************************************************************************************
 // Forward PBWT for non-binary alphabet
 bool CPBWT::EncodeFlexible(const uint32_t max_val, vector<uint32_t> &v_input, vector<pair<uint32_t, uint32_t>> &v_rle)
-{
-	
+{	
 	v_hist.resize(max_val + 1);
 	size_t c_size = v_input.size();
 

@@ -1,0 +1,30 @@
+# This script checks if two VCF/BCF/VCF.GZ files contain the same data.
+
+# Usage:
+# ./check [in_file] [out_file]
+# where: 
+# [in_file] - input VCF/BCF/VCF.GZ file
+# [out_file] - output VCF/BCF/VCF.GZ file
+
+# Operation:
+# The script uses bcftools and gawk to create two VCF files: in.vcf and out.vcf, based on [file1] and [file2], respectively. 
+# The only modifications are: sorting the subfields in the INFO column and removing insignificant zeros from the input VCF file [in_file]
+# Next, the md5 of both VCF files are calculated and compared. 
+# Possible output:
+# "OK" - ff the files are the same
+# "NOT OK" - ff the files are the different
+
+#Path to bcftools (used to add missing header lines to the input VCF file)
+BCFTOOLS=../bcftools
+
+#Path to utility that calculates a message-digest fingerprint (checksum) for a file
+MD5=md5sum   #change for md5 for macOS
+
+
+$BCFTOOLS view --no-version $1 | gawk ' !/^#/ {split( $8, a, ";" ); asort( a ); printf $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"; {for( i = 1; i < length(a); i++ ) printf("%s;", a[i]); printf(a[length(a)]"\t");} { for(i = 9; i<=NF; i++) printf($i"\t")} ;print ""}' | sed -e 's/0*e+/e+/g' > in.vcf
+
+$BCFTOOLS view --no-version  $2 | gawk ' !/^#/ {split( $8, a, ";" ); asort( a ); printf $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"; {for( i = 1; i < length(a); i++ ) printf("%s;", a[i]); printf(a[length(a)]"\t");} { for(i = 9; i<=NF; i++) printf($i"\t")} ;print ""}'  > out.vcf 
+
+$MD5 in.vcf out.vcf | tee comp_md5
+
+if [ `cat comp_md5 | awk ' {print $4}' | uniq | wc -l` -eq 1 ] ; then echo OK; else echo NOT OK; fi

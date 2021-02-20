@@ -7,10 +7,6 @@ INCLUDE_DIR=libbsc
 HTS_INCLUDE_DIR=htslib/include
 HTS_LIB_DIR=htslib/lib
 
-CC 	= g++
-CFLAGS	= -Wall -O3 -m64 -std=c++14 -pthread -mavx -I $(HTS_INCLUDE_DIR) -I $(INCLUDE_DIR) -fpermissive
-CLINK	= -lm -O3 -std=c++14 -pthread -mavx -lz -lbz2 -lcurl -llzma -L $(LIBS_DIR) 
-
 ifdef MSVC     # Avoid the MingW/Cygwin sections
     uname_S := Windows
 else                          # If uname not available => 'not' 
@@ -19,11 +15,24 @@ endif
 
 ifeq ($(uname_S),Linux)
 	BSC_LIB_DIR=libbsc/linux
+	MIMALLOC_LIB=mimalloc/linux
+	ALLOC=jemalloc/linux/libjemalloc.a
+	ALLOC_CLINK=-Wl,--no-as-needed -ldl
 endif
 
 ifeq ($(uname_S),Darwin)
 	BSC_LIB_DIR=libbsc/macos
+	MIMALLOC_LIB=mimalloc/macos
+	ALLOC=mimalloc/macos/libmimalloc.a
+	ALLOC_CLINK=
 endif
+
+CC 	= g++
+CFLAGS	= -Wall -O3 -m64 -std=c++14 -pthread -mavx -I $(HTS_INCLUDE_DIR) -I $(INCLUDE_DIR) -fpermissive
+CLINK	= -lm -O3 -std=c++14 -pthread -mavx -lz -lbz2 -lcurl -llzma -ldeflate -L $(LIBS_DIR) $(ALLOC_CLINK)
+
+#To build without libdeflate uncomment the line below (and comment the above line).
+#CLINK	= -lm -O3 -std=c++14 -pthread -mavx -lz -lbz2 -lcurl -llzma -L $(LIBS_DIR) $(ALLOC_CLINK)
 
 # default install location (binary placed in the /bin folder)
 prefix      = /usr/local
@@ -47,7 +56,7 @@ vcfshark: $(VCFShark_MAIN_DIR)/application.o \
 	$(VCFShark_MAIN_DIR)/pbwt.o \
 	$(VCFShark_MAIN_DIR)/text_pp.o \
 	$(VCFShark_MAIN_DIR)/utils.o \
-	$(VCFShark_MAIN_DIR)/vcf.o
+	$(VCFShark_MAIN_DIR)/vcf.o 
 	$(CC) -o $(VCFShark_ROOT_DIR)/$@  \
 	$(VCFShark_MAIN_DIR)/application.o \
 	$(VCFShark_MAIN_DIR)/archive.o \
@@ -62,6 +71,7 @@ vcfshark: $(VCFShark_MAIN_DIR)/application.o \
 	$(VCFShark_MAIN_DIR)/text_pp.o \
 	$(VCFShark_MAIN_DIR)/utils.o \
 	$(VCFShark_MAIN_DIR)/vcf.o \
+	$(ALLOC) \
 	$(BSC_LIB_DIR)/libbsc.a \
 	$(HTS_LIB_DIR)/libhts.a \
 	$(CLINK)

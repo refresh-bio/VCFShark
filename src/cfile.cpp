@@ -2,13 +2,15 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include <memory>
 #include <iostream>
+#include <functional>
+#include <vector>
 
 using namespace std;
 
@@ -19,6 +21,8 @@ using namespace std;
 CCompressedFile::CCompressedFile()
 {
 	open_mode = open_mode_t::none;
+
+	vcs_compression_level = 3;
 
 	archive = nullptr;
 	tmp_archive = nullptr;
@@ -36,50 +40,82 @@ CCompressedFile::CCompressedFile()
 // ************************************************************************************
 CCompressedFile::~CCompressedFile()
 {
-	if (rce)
-		delete rce;
-	if (rcd)
-		delete rcd;
-
-	if (vios_i)
-		delete vios_i;
-	if (vios_o)
-		delete vios_o;
-
 	v_coder_threads.clear();
 
+	using fo_t = function<void(void)>;
+
+	CRegisteringQueue<fo_t> q_fo(1);
+
+	vector<thread> v_thr;
+
+	v_thr.reserve(no_coder_threads);
+
+	for (uint32_t i = 0; i < no_coder_threads; ++i)
+		v_thr.emplace_back(thread([&, this]() {
+
+		fo_t fo;
+
+		while (!q_fo.IsCompleted())
+		{
+			if (q_fo.Pop(fo))
+				fo();
+		}
+	}));
+
+	if (rce)
+		q_fo.Push([=] {delete rce; });
+	if (rcd)
+		q_fo.Push([=] {delete rcd; });
+
+	if (vios_i)
+		q_fo.Push([=] {delete vios_i; });
+	if (vios_o)
+		q_fo.Push([=] {delete vios_o; });
+
 	if (q_packages)
-		delete q_packages;
+		q_fo.Push([=] {delete q_packages; });
 
 	if (q_preparation_ids)
-		delete q_preparation_ids;
+		q_fo.Push([=] {delete q_preparation_ids; });
 
 	for (auto p : v_bsc_size)
-		delete p;
+		if (p)
+			q_fo.Push([=] {delete p; });
 
 	for (auto p : v_bsc_data)
-		delete p;
+		if (p)
+			q_fo.Push([=] {	delete p; });
 
 	for (auto p : v_bsc_db_size)
-		delete p;
+		if (p)
+			q_fo.Push([=] {delete p; });
 
 	for (auto p : v_bsc_db_data)
-		delete p;
+		if (p)
+			q_fo.Push([=] {delete p; });
 
 	for (auto p : v_format_compress)
-		delete p;
+		if(p)
+			q_fo.Push([=] {delete p; });
 
 	for (auto p : v_packages)
-		delete p;
+		if (p)
+			q_fo.Push([=] {delete p;});
 
 	for (auto p : v_db_packages)
-		delete p;
+		if (p)
+			q_fo.Push([=] {delete p;});
 
 	if (archive)
-		delete archive;
+		q_fo.Push([=] {delete archive; });
 
 	if (tmp_archive)
-		delete tmp_archive;
+		q_fo.Push([=] {delete tmp_archive; });
+		
+	q_fo.MarkCompleted();
+
+	for (auto& t : v_thr)
+		t.join();
 }
 
 // ************************************************************************************
@@ -109,8 +145,6 @@ bool CCompressedFile::OpenForReading(string file_name)
 	q_preparation_ids = new CRegisteringQueue<pair<int, int>>(1);
 
 	m_data_nodes.clear();
-
-
 	m_data_nodes.resize(no_keys, true);
 
 	m_data_edges.clear();
@@ -156,7 +190,7 @@ bool CCompressedFile::OpenForReading(string file_name)
 
 		if (keys[i].keys_type == key_type_t::fmt || keys[i].keys_type == key_type_t::info)
 		{
-			v_format_compress[i] = new CFormatCompress();
+			v_format_compress[i] = new CFormatCompress("key " + to_string(i), vcs_compression_level);
 			v_format_compress[i]->SetNoSamples(no_samples);
 		}
 
@@ -312,9 +346,9 @@ bool CCompressedFile::OpenForWriting(string file_name, uint32_t _no_keys)
 	for (uint32_t i = 0; i < no_keys; i++)
 	{
 		if((int) i != gt_key_id)
-			v_o_buf[i].SetMaxSize(max_buffer_size);
+			v_o_buf[i].SetMaxSize(max_buffer_size, i * max_buffer_size / no_keys);
 		else
-			v_o_buf[i].SetMaxSize(max_buffer_gt_size);
+			v_o_buf[i].SetMaxSize(max_buffer_gt_size, 0);
 
 		v_bsc_size[i] = new CBSCWrapper;
 		v_bsc_size[i]->InitCompress(p_bsc_size);
@@ -324,7 +358,7 @@ bool CCompressedFile::OpenForWriting(string file_name, uint32_t _no_keys)
 
 		if (keys[i].keys_type == key_type_t::fmt || keys[i].keys_type == key_type_t::info)
 		{
-			v_format_compress[i] = new CFormatCompress();
+			v_format_compress[i] = new CFormatCompress("key " + to_string(i), vcs_compression_level);
 			v_format_compress[i]->SetNoSamples(no_samples);
 		}
 
@@ -362,7 +396,7 @@ bool CCompressedFile::OpenForWriting(string file_name, uint32_t _no_keys)
 		v_db_ids_data.emplace_back(archive->RegisterStream(x));
 
 	for(uint32_t i = 0; i < no_db_fields; ++i)
-		v_o_db_buf[i].SetMaxSize(max_buffer_db_size);
+		v_o_db_buf[i].SetMaxSize(max_buffer_db_size, i * max_buffer_db_size / no_db_fields / 8);
 
 	v_bsc_db_size.resize(no_db_fields);
 	v_bsc_db_data.resize(no_db_fields);
@@ -413,9 +447,11 @@ bool CCompressedFile::OpenForWriting(string file_name, uint32_t _no_keys)
 		vector<uint8_t> v_compressed;
 		vector<uint8_t> v_tmp;
 
+		auto fo = [this](SPackage& pck)->bool {return check_coder_compressor(pck); };
+
 		while (!q_packages->IsCompleted())
 		{
-			if (!q_packages->Pop(pck))
+			if (!q_packages->PopWithHint<SPackage>(pck, fo))
 				continue;
 
 			{
@@ -642,6 +678,12 @@ void CCompressedFile::SetNoThreads(int _no_threads)
 }
 
 // ************************************************************************************
+void CCompressedFile::SetCompressionLevel(int _compression_level)
+{
+	vcs_compression_level = _compression_level;
+}
+
+// ************************************************************************************
 int CCompressedFile::GetNeglectLimit()
 {
 	return neglect_limit;
@@ -689,7 +731,7 @@ bool CCompressedFile::GetVariant(variant_desc_t &desc, vector<field_desc> &field
 	}
 
 	char* str = nullptr;
-	uint32_t len;
+	uint32_t len = 0;
 	
 	v_i_db_buf[id_db_chrom].ReadText(str, len);
 	desc.chrom = string(str, str + len);
@@ -804,7 +846,7 @@ bool CCompressedFile::SetVariant(variant_desc_t &desc, vector<field_desc> &field
 				++v_cnt_db_packages[i];
 			}
 
-			q_packages->Push(pck);
+			q_packages->Emplace(pck);
 		}
 
 	prev_pos = desc.pos;
@@ -866,7 +908,7 @@ bool CCompressedFile::SetVariant(variant_desc_t &desc, vector<field_desc> &field
 				++v_cnt_packages[i];
 			}
 
-			q_packages->Push(pck);
+			q_packages->Emplace(pck);
 		}
     }
 

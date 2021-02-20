@@ -3,9 +3,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include <thread>
@@ -27,6 +27,7 @@ using namespace std;
 class CApplication
 {
 	const size_t no_variants_in_buf = 8192u;
+//	const size_t no_variants_in_buf = 4096u;
 	const size_t max_size_of_function = 16384u;
 
 	typedef pair<uint8_t, uint32_t> run_desc_t;
@@ -43,6 +44,9 @@ class CApplication
 
 	vector<tuple<uint8_t, run_t, uint32_t, uint32_t>> v_sample_data_compress, v_sample_data_io;
 	vector<pair<variant_desc_t, uint8_t>> v_sample_d_data_compress, v_sample_d_data_io;
+
+	vector<bcf1_t*> v_bcf_io, v_bcf_parse;
+	size_t s_bcf_io, s_bcf_parse;
 
 	function_size_graph_t function_size_graph;
 	function_data_graph_t function_data_graph;

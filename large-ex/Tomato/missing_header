@@ -1,0 +1,17 @@
+##INFO=<ID=AC1,Number=1,Type=String,Description=".">
+##INFO=<ID=GT,Number=1,Type=Flag,Description=".">
+##FORMAT=<ID=0|1,Number=1,Type=String,Description=".">
+##FORMAT=<ID=1|1,Number=1,Type=String,Description=".">
+##contig=<ID=SL2.50ch00>
+##contig=<ID=SL2.50ch01>
+##contig=<ID=SL2.50ch02>
+##contig=<ID=SL2.50ch03>
+##contig=<ID=SL2.50ch04>
+##contig=<ID=SL2.50ch05>
+##contig=<ID=SL2.50ch06>
+##contig=<ID=SL2.50ch07>
+##contig=<ID=SL2.50ch08>
+##contig=<ID=SL2.50ch09>
+##contig=<ID=SL2.50ch10>
+##contig=<ID=SL2.50ch11>
+##contig=<ID=SL2.50ch12>

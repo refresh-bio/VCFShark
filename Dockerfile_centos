@@ -1,8 +1,19 @@
 FROM centos:8
 
 RUN  yum -y update  && yum -y upgrade &&\ 
-yum -y install make  gcc gcc-c++ git wget libcurl-devel zlib-devel bzip2  bzip2-devel xz-devel 
+yum -y install make  gcc gcc-c++ git wget libcurl-devel zlib-devel bzip2  bzip2-devel xz-devel
 
+WORKDIR /home/
+
+RUN git clone https://github.com/ebiggers/libdeflate
+
+WORKDIR /home/libdeflate
+
+RUN make
+
+RUN make install
+	
+WORKDIR /home/
 	
 RUN mkdir -p /home/vcfshark 
 	
@@ -16,3 +27,4 @@ RUN ./install.sh
 
 RUN make
 
+ENV LD_LIBRARY_PATH  /usr/local/lib

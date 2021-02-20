@@ -3,9 +3,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include <vector>
@@ -30,6 +30,7 @@ struct CParams
     file_type out_type;
     char bcf_compression_level;
 	bool extra_variants;
+	uint32_t vcs_compression_level;
 
 	// internal params
 	uint32_t neglect_limit;
@@ -46,33 +47,37 @@ struct CParams
 		extra_variants = false;
 		no_threads = 8;
 
+		vcs_compression_level = 3;
+
 		// internal params
 		neglect_limit = 10;
 	}
 
 	void store_params(vector<uint8_t> &v_params)
 	{
-		v_params.push_back('G');
-		v_params.push_back('T');
+		v_params.push_back('V');
+		v_params.push_back('C');
 		v_params.push_back('S');
 		v_params.push_back('1');
 
 		v_params.push_back((uint8_t)neglect_limit);
+		v_params.push_back((uint8_t)vcs_compression_level);
 	}
 
 	bool load_params(vector<uint8_t> &v_params)
 	{
 		int i = 0;
 
-		if (v_params.size() != 5)
+		if (v_params.size() != 6)
 			return false;
 
-		if (v_params[i++] != 'G')	return false;
-		if (v_params[i++] != 'T')	return false;
+		if (v_params[i++] != 'V')	return false;
+		if (v_params[i++] != 'C')	return false;
 		if (v_params[i++] != 'S')	return false;
 		if (v_params[i++] != '1')	return false;
 
 		neglect_limit = v_params[i++];
+		vcs_compression_level = v_params[i++];
 
 		return true;
 	}

@@ -17,7 +17,7 @@ case "$(uname -s)" in
      wget https://github.com/samtools/htslib/releases/download/1.10.2/htslib-1.10.2.tar.bz2
      tar -xf htslib-1.10.2.tar.bz2
      cd htslib-1.10.2
-     ./configure --libdir=${INSTALL_DIR}/lib CC=clang
+     ./configure --libdir=${INSTALL_DIR}/lib CC=clang --disable-libcurl   #--without-libdeflate #uncomment, to build HTSlib without libdeflate
      make 
      make prefix=${INSTALL_DIR} install
      cd ..
@@ -31,7 +31,7 @@ case "$(uname -s)" in
      wget https://github.com/samtools/htslib/releases/download/1.10.2/htslib-1.10.2.tar.bz2
      tar -xf htslib-1.10.2.tar.bz2
      cd htslib-1.10.2
-     ./configure --libdir=${INSTALL_DIR}/lib  
+     ./configure --libdir=${INSTALL_DIR}/lib  --disable-libcurl   #--without-libdeflate #uncomment, to build HTSlib without libdeflate 
      make
      make prefix=${INSTALL_DIR} install
      cd ..

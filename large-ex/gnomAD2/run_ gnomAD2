@@ -1,0 +1,23 @@
+# This script:
+# 1. Downloads chr22 VCF file from Genome Aggregation Database (gnomAD v2.1.1)
+# 2. Compress the VCF file with VCFShark
+# 3. Decompress the archive with VCFShark
+# 4. Checks if the input VCF file and the VCF file decompressed from the VCFShark archive contain the same data.
+
+#Path to VCFShark
+VCFSHARK=../../vcfshark
+
+#Path to bcftools (used to add missing header lines to the input VCF file)
+BCFTOOLS=../bcftools
+
+echo "Downloading the VCF file"
+wget https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.22.vcf.bgz
+
+echo "VCFShark compression"
+$VCFSHARK compress gnomad.genomes.r2.1.1.sites.22.vcf.bgz gnomad2.vcfshark
+
+echo "VCFShark decompression"
+$VCFSHARK decompress -b  gnomad2.vcfshark gnomad2.vcfshark.decomp.vcf.gz 
+
+echo "Checking if compression/decompression works"
+../check gnomad.genomes.r2.1.1.sites.22.vcf.bgz  gnomad2.vcfshark.decomp.vcf.gz 

@@ -3,9 +3,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include <string>
@@ -65,6 +65,8 @@ class CCompressedFile
 
 	const array<string, 6> db_stream_name_size = { "db_chrom_size", "db_pos_size", "db_id_size", "db_ref_size", "db_alt_size", "db_qual_size" };
 	const array<string, 6> db_stream_name_data = { "idb_chrom_data", "idb_pos_data", "idb_id_data", "idb_ref_data", "idb_alt_data", "idb_qual_data" };
+
+	uint32_t vcs_compression_level;
 
 	vector<CBSCWrapper*> v_bsc_size;
 	vector<CBSCWrapper*> v_bsc_data;
@@ -166,11 +168,16 @@ class CCompressedFile
 
 	//const uint32_t max_buffer_size = 16 << 20;
 	const uint32_t max_buffer_size = 8 << 20;
+	const uint32_t var_buffer_size = 1 << 20;		// Variability of buffer sizes
+
 	const uint32_t max_buffer_gt_size = 256 << 20;
 	const uint32_t max_buffer_db_size = 8 << 20;
+/*	const uint32_t max_buffer_size = 2 << 20;
+	const uint32_t max_buffer_gt_size = 256 << 20;
+	const uint32_t max_buffer_db_size = 2 << 20;*/
 
 	const size_t pp_compress_flag = 1u << 30;
-	const int max_cnt_packages = 3;
+	const int max_cnt_packages = 4;
 
 	const bsc_params_t p_bsc_size = { 25, 16, 128, LIBBSC_CODER_QLFC_ADAPTIVE };
 	const bsc_params_t p_bsc_data = { 25, 16, 64, LIBBSC_CODER_QLFC_ADAPTIVE };
@@ -244,11 +251,66 @@ class CCompressedFile
 	context_t ctx_prefix;
 	context_t ctx_symbol;
 	
-	typedef CContextHM<CRangeCoderModel<CSimpleModel, CVectorIOStream>> ctx_map_e_t;
-	typedef CContextHM<CRangeCoderModel<CSimpleModel, CVectorIOStream>> ctx_map_d_t;
+	using ModelType_11_10_1 = CSimpleModel<11, 10, 1>;
+	using ModelType_16_15_1 = CSimpleModel<16, 15, 1>;
+	using ModelType_256_15_1 = CAdjustableModel<256, 15, 1>;
 
-	ctx_map_e_t rce_coders;
-	ctx_map_d_t rcd_coders;
+	using ModelType_2_1_1 = CSimpleModel<2, 11, 1>;
+	using ModelType_4_1_1 = CSimpleModel<4, 11, 1>;
+	using ModelType_8_1_1 = CSimpleModel<8, 11, 1>;
+	using ModelType_16_1_1 = CSimpleModel<16, 11, 1>;
+	using ModelType_32_1_1 = CSimpleModel<32, 11, 1>;
+	using ModelType_64_1_1 = CAdjustableModelEmb<64, 11, 1>;
+	using ModelType_128_1_1 = CAdjustableModelEmb<128, 11, 1>;
+	using ModelType_256_1_1 = CAdjustableModelEmb<256, 11, 1>;
+
+	using ctx_map_11_10_e_t = CContextHM<CRangeCoderModel<ModelType_11_10_1, CVectorIOStream, 11, 10, 1>>;
+	using ctx_map_11_10_d_t = CContextHM<CRangeCoderModel<ModelType_11_10_1, CVectorIOStream, 11, 10, 1>>;
+	using ctx_map_16_15_e_t = CContextHM<CRangeCoderModel<ModelType_16_15_1, CVectorIOStream, 16, 15, 1>>;
+	using ctx_map_16_15_d_t = CContextHM<CRangeCoderModel<ModelType_16_15_1, CVectorIOStream, 16, 15, 1>>;
+	using ctx_map_256_15_e_t = CContextHM<CRangeCoderModel<ModelType_256_15_1, CVectorIOStream, 256, 15, 1>>;
+	using ctx_map_256_15_d_t = CContextHM<CRangeCoderModel<ModelType_256_15_1, CVectorIOStream, 256, 15, 1>>;
+
+	using ctx_map_2_11_e_t = CContextHM<CRangeCoderModel<ModelType_2_1_1, CVectorIOStream, 2, 11, 1>>;
+	using ctx_map_2_11_d_t = CContextHM<CRangeCoderModel<ModelType_2_1_1, CVectorIOStream, 2, 11, 1>>;
+	using ctx_map_4_11_e_t = CContextHM<CRangeCoderModel<ModelType_4_1_1, CVectorIOStream, 4, 11, 1>>;
+	using ctx_map_4_11_d_t = CContextHM<CRangeCoderModel<ModelType_4_1_1, CVectorIOStream, 4, 11, 1>>;
+	using ctx_map_8_11_e_t = CContextHM<CRangeCoderModel<ModelType_8_1_1, CVectorIOStream, 8, 11, 1>>;
+	using ctx_map_8_11_d_t = CContextHM<CRangeCoderModel<ModelType_8_1_1, CVectorIOStream, 8, 11, 1>>;
+	using ctx_map_16_11_e_t = CContextHM<CRangeCoderModel<ModelType_16_1_1, CVectorIOStream, 16, 11, 1>>;
+	using ctx_map_16_11_d_t = CContextHM<CRangeCoderModel<ModelType_16_1_1, CVectorIOStream, 16, 11, 1>>;
+	using ctx_map_32_11_e_t = CContextHM<CRangeCoderModel<ModelType_32_1_1, CVectorIOStream, 32, 11, 1>>;
+	using ctx_map_32_11_d_t = CContextHM<CRangeCoderModel<ModelType_32_1_1, CVectorIOStream, 32, 11, 1>>;
+	using ctx_map_64_11_e_t = CContextHM<CRangeCoderModel<ModelType_64_1_1, CVectorIOStream, 64, 11, 1>>;
+	using ctx_map_64_11_d_t = CContextHM<CRangeCoderModel<ModelType_64_1_1, CVectorIOStream, 64, 11, 1>>;
+	using ctx_map_128_11_e_t = CContextHM<CRangeCoderModel<ModelType_128_1_1, CVectorIOStream, 128, 11, 1>>;
+	using ctx_map_128_11_d_t = CContextHM<CRangeCoderModel<ModelType_128_1_1, CVectorIOStream, 128, 11, 1>>;
+	using ctx_map_256_11_e_t = CContextHM<CRangeCoderModel<ModelType_256_1_1, CVectorIOStream, 256, 11, 1>>;
+	using ctx_map_256_11_d_t = CContextHM<CRangeCoderModel<ModelType_256_1_1, CVectorIOStream, 256, 11, 1>>;
+
+	ctx_map_11_10_e_t rce_coders_rl_pref;
+	ctx_map_11_10_d_t rcd_coders_rl_pref;
+	ctx_map_16_15_e_t rce_coders_rl_sym;
+	ctx_map_16_15_d_t rcd_coders_rl_sym;
+	ctx_map_256_15_e_t rce_coders_large_val;
+	ctx_map_256_15_d_t rcd_coders_large_val;
+
+	ctx_map_2_11_e_t rce_coders_rl_suf2;
+	ctx_map_2_11_d_t rcd_coders_rl_suf2;
+	ctx_map_4_11_e_t rce_coders_rl_suf4;
+	ctx_map_4_11_d_t rcd_coders_rl_suf4;
+	ctx_map_8_11_e_t rce_coders_rl_suf8;
+	ctx_map_8_11_d_t rcd_coders_rl_suf8;
+	ctx_map_16_11_e_t rce_coders_rl_suf16;
+	ctx_map_16_11_d_t rcd_coders_rl_suf16;
+	ctx_map_32_11_e_t rce_coders_rl_suf32;
+	ctx_map_32_11_d_t rcd_coders_rl_suf32;
+	ctx_map_64_11_e_t rce_coders_rl_suf64;
+	ctx_map_64_11_d_t rcd_coders_rl_suf64;
+	ctx_map_128_11_e_t rce_coders_rl_suf128;
+	ctx_map_128_11_d_t rcd_coders_rl_suf128;
+	ctx_map_256_11_e_t rce_coders_rl_suf256;
+	ctx_map_256_11_d_t rcd_coders_rl_suf256;
 
 	function_data_graph_t function_data_graph;
 	function_size_graph_t function_size_graph;
@@ -260,26 +322,188 @@ class CCompressedFile
 	vector<bool> m_data_nodes;
 	vector<int> m_data_edges;
 
-	inline ctx_map_e_t::value_type find_rce_coder(context_t ctx, uint32_t no_symbols, uint32_t max_log_counter);
-	inline ctx_map_d_t::value_type find_rcd_coder(context_t ctx, uint32_t no_symbols, uint32_t max_log_counter);
+	template<unsigned NO_SYMBOLS, unsigned MAX_LOG_COUNTER, unsigned ADDER>
+	CRangeCoderModel<CSimpleModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>*
+		find_rce_coder(CContextHM<CRangeCoderModel<CSimpleModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>> &map, context_t ctx)
+	{
+		auto p = map.find(ctx);
+
+		if (p == nullptr)
+			map.insert(ctx, p = new CRangeCoderModel<CSimpleModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>(rce, nullptr, true));
+
+		return p;
+	}
+
+	template<unsigned NO_SYMBOLS, unsigned MAX_LOG_COUNTER, unsigned ADDER>
+	CRangeCoderModel<CAdjustableModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>*
+		find_rce_coder(CContextHM<CRangeCoderModel<CAdjustableModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>> &map, context_t ctx)
+	{
+		auto p = map.find(ctx);
+
+		if (p == nullptr)
+			map.insert(ctx, p = new CRangeCoderModel<CAdjustableModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>(rce, nullptr, true));
+
+		return p;
+	}
+
+	template<unsigned NO_SYMBOLS, unsigned MAX_LOG_COUNTER, unsigned ADDER>
+	CRangeCoderModel<CAdjustableModelEmb<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>*
+		find_rce_coder(CContextHM<CRangeCoderModel<CAdjustableModelEmb<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>> &map, context_t ctx)
+	{
+		auto p = map.find(ctx);
+
+		if (p == nullptr)
+			map.insert(ctx, p = new CRangeCoderModel<CAdjustableModelEmb<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>(rce, nullptr, true));
+
+		return p;
+	}
+
+	template<unsigned NO_SYMBOLS, unsigned MAX_LOG_COUNTER, unsigned ADDER>
+	CRangeCoderModel<CSimpleModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>*
+		find_rcd_coder(CContextHM<CRangeCoderModel<CSimpleModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>>& map, context_t ctx)
+	{
+		auto p = map.find(ctx);
+
+		if (p == nullptr)
+			map.insert(ctx, p = new CRangeCoderModel<CSimpleModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>(rcd, nullptr, false));
+
+		return p;
+	}
+
+	template<unsigned NO_SYMBOLS, unsigned MAX_LOG_COUNTER, unsigned ADDER>
+	CRangeCoderModel<CAdjustableModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>*
+		find_rcd_coder(CContextHM<CRangeCoderModel<CAdjustableModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>>& map, context_t ctx)
+	{
+		auto p = map.find(ctx);
+
+		if (p == nullptr)
+			map.insert(ctx, p = new CRangeCoderModel<CAdjustableModel<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>(rcd, nullptr, false));
+
+		return p;
+	}
+
+	template<unsigned NO_SYMBOLS, unsigned MAX_LOG_COUNTER, unsigned ADDER>
+	CRangeCoderModel<CAdjustableModelEmb<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>*
+		find_rcd_coder(CContextHM<CRangeCoderModel<CAdjustableModelEmb<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>>& map, context_t ctx)
+	{
+		auto p = map.find(ctx);
+
+		if (p == nullptr)
+			map.insert(ctx, p = new CRangeCoderModel<CAdjustableModelEmb<NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>, CVectorIOStream, NO_SYMBOLS, MAX_LOG_COUNTER, ADDER>(rcd, nullptr, false));
+
+		return p;
+	}
 
 	inline void encode_run_len(uint32_t symbol, uint32_t len);
 	inline void decode_run_len(uint32_t &symbol, uint32_t &len);
 
-	void append(vector<uint8_t> &v_comp, string x);
-	void append(vector<uint8_t> &v_comp, int64_t x);
-	void append_fixed(vector<uint8_t> &v_comp, uint64_t x, int n);
+	void append(vector<uint8_t>& v_comp, string x)
+	{
+		v_comp.insert(v_comp.end(), x.begin(), x.end());
+		v_comp.emplace_back(0);
+	}
 
-	void read(vector<uint8_t> &v_comp, size_t &pos, string &x);
-	void read(vector<uint8_t> &v_comp, size_t &pos, int64_t &x);
-	void read(vector<uint8_t> &v_comp, size_t &pos, uint64_t &x);
-	void read(vector<uint8_t> &v_comp, size_t &pos, uint32_t &x);
-	void read_fixed(vector<uint8_t> &v_comp, size_t &pos, uint64_t &x, int n);
+	void append(vector<uint8_t> &v_comp, int64_t x)
+	{
+		int n_bytes;
+
+		if (x < 0)
+		{
+			x = -x;
+			n_bytes = 8;
+		}
+		else
+			n_bytes = 0;
+
+		auto tmp = x;
+
+		for (; tmp; ++n_bytes)
+			tmp >>= 8;
+
+		v_comp.emplace_back(n_bytes);
+
+		for (int i = 0; i < (n_bytes & 7); ++i)
+		{
+			v_comp.emplace_back(x & 0xff);
+			x >>= 8;
+		}
+	}
+
+	void append_fixed(vector<uint8_t> &v_comp, uint64_t x, int n)
+	{
+		for (int i = 0; i < n; ++i)
+		{
+			v_comp.emplace_back(x & 0xff);
+			x >>= 8;
+		}
+	}
+
+	void read(vector<uint8_t> &v_comp, size_t &pos, string &x)
+	{
+		x.clear();
+
+		for (; pos < v_comp.size() && v_comp[pos] != 0; ++pos)
+			x.push_back(v_comp[pos]);
+		++pos;
+	}
+
+	void read(vector<uint8_t> &v_comp, size_t &pos, int64_t &x)
+	{
+		uint32_t n_bytes = v_comp[pos++];
+
+		int64_t sign = 1;
+
+		if (n_bytes >= 8)
+		{
+			sign = -1;
+			n_bytes -= 8;
+		}
+
+		x = 0;
+		int shift = 0;
+
+		for (uint32_t i = 0; i < n_bytes; ++i)
+		{
+			x += ((int64_t)v_comp[pos++]) << shift;
+			shift += 8;
+		}
+
+		x *= sign;
+	}
+
+	void read(vector<uint8_t> &v_comp, size_t &pos, uint64_t &x)
+	{
+		int64_t tmp;
+
+		read(v_comp, pos, tmp);
+		x = (uint64_t)tmp;
+	}
+
+	void read(vector<uint8_t> &v_comp, size_t &pos, uint32_t &x)
+	{
+		int64_t tmp;
+
+		read(v_comp, pos, tmp);
+		x = (uint32_t)tmp;
+	}
+
+	void read_fixed(vector<uint8_t> &v_comp, size_t &pos, uint64_t &x, int n)
+	{
+		int shift = 0;
+		x = 0;
+
+		for (int i = 0; i < n; ++i)
+		{
+			x += ((uint64_t)v_comp[pos++]) << shift;
+			shift += 8;
+		}
+	}
 
 	bool load_descriptions();
 	bool save_descriptions();
 
 	void lock_coder_compressor(SPackage& pck);
+	bool check_coder_compressor(SPackage& pck);
 	void unlock_coder_compressor(SPackage& pck);
 	void lock_text_compressor(SPackage& pck);
 	void unlock_text_compressor(SPackage& pck);
@@ -348,6 +572,8 @@ public:
 	void SetPloidy(int _ploidy);
 
 	void SetNoThreads(int _no_threads);
+
+	void SetCompressionLevel(int _compression_level);
 
 	int GetNeglectLimit();
 	void SetNeglectLimit(uint32_t _neglect_limit);

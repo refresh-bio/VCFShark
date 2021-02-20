@@ -1,0 +1,24 @@
+# This script:
+# 1. Downloads the VCF file (IRIS_313-10000.snp.vcf.gz) from 3000 Rice Genome Project.
+# 2. Repairs the VCF file (so it complies with the VCF specification)
+# 3. Compress the VCF file with VCFShark
+# 4. Decompress the archive with VCFShark
+# 5. Checks if the input VCF file and the VCF file decompressed from the VCFShark archive contain the same data.
+
+#Path to VCFShark
+VCFSHARK=../../vcfshark
+
+#Path to bcftools (used to add missing header lines to the input VCF file)
+BCFTOOLS=../bcftools
+
+echo "Downloading the VCF file"
+wget https://3kricegenome.s3.amazonaws.com/9311/IRIS_313-10000.snp.vcf.gz
+
+echo "VCFShark compression"
+$VCFSHARK compress IRIS_313-10000.snp.vcf.gz  rice.vcfshark
+
+echo "VCFShark decompression"
+$VCFSHARK decompress -b rice.vcfshark rice.vcfshark.decomp.vcf.gz 
+
+echo "Checking if compression/decompression works"
+../check IRIS_313-10000.snp.vcf.gz rice.vcfshark.decomp.vcf.gz

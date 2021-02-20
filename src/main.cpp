@@ -2,9 +2,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include <iostream>
@@ -20,7 +20,6 @@
 #include "params.h"
 #include "application.h"
 
-#include "vios.h"
 #include "rc.h"
 #include "sub_rc.h"
 #include "io.h"
@@ -40,7 +39,9 @@ void usage_decompress();
 // ******************************************************************************
 void usage_main()
 {
-	cerr << "vcfshark <mode>\n";
+	cerr << "VCFShark v. 1.1 (2021-02-18)\n";
+	cerr << "Usage:\n";
+	cerr << "  vcfshark <mode>\n";
 	cerr << "Parameters:\n";
 	cerr << "  mode - one of:\n";
 	cerr << "    compress   - compress VCF file\n";
@@ -50,19 +51,24 @@ void usage_main()
 // ******************************************************************************
 void usage_compress()
 {
-	cerr << "vcfshark compress [options] <input_vcf> <archive>\n";
+	cerr << "VCFShark v. 1.1 (2021-02-18)\n";
+	cerr << "Usage:\n";
+	cerr << "  vcfshark compress [options] <input_vcf> <archive>\n";
 	cerr << "Parameters:\n";
 	cerr << "  input_vcf - path to input VCF (or VCF.GZ or BCF) file\n";
 	cerr << "  archive - path to output compressed VCF file\n";
 	cerr << "Options:\n";
     cerr << "  -nl <value> - ignore rare variants; value is a limit of alternative alleles (default: " << params.neglect_limit << ")\n";
     cerr << "  -t <value>  - max. no. of compressing threads (default: " << params.no_threads << ")\n";
+    cerr << "  -c <value>  - compression level [1, 2, 3] (default: " << params.vcs_compression_level << ")\n";
 }
 
 // ******************************************************************************
 void usage_decompress()
 {
-	cerr << "vcfshark decompress [options] <archive> <output_vcf>\n";
+	cerr << "VCFShark v. 1.1 (2021-02-18)\n";
+	cerr << "Usage:\n";
+	cerr << "  vcfshark decompress [options] <archive> <output_vcf>\n";
 	cerr << "Parameters:\n";
 	cerr << "  archive   - path to input file with compressed VCF file\n";
 	cerr << "  output_vcf - path to output VCF file\n";
@@ -107,6 +113,13 @@ bool parse_params(int argc, char **argv)
 			else if (string(argv[i]) == "-t" && i + 1 < argc - 2)
 			{
 				params.no_threads = atoi(argv[i + 1]);
+				i += 2;
+			}
+			else if (string(argv[i]) == "-c" && i + 1 < argc - 2)
+			{
+				params.vcs_compression_level = atoi(argv[i + 1]);
+				if (params.vcs_compression_level < 1 || params.vcs_compression_level > 3)
+					params.vcs_compression_level = 3;
 				i += 2;
 			}
         }
@@ -163,10 +176,9 @@ bool parse_params(int argc, char **argv)
                 cerr << "Unknown option : " << argv[i] << endl;
                 usage_decompress();
                 return false;
-            }
-            
-
+            }         
         }
+
 		params.db_file_name = string(argv[i]);
 		params.vcf_file_name = string(argv[i+1]);
 	}

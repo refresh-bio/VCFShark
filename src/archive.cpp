@@ -2,9 +2,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include "archive.h"
@@ -185,9 +185,9 @@ bool CArchive::serialize()
 			str_size += part.size;
 		}
 
-//#ifdef LOG_INFO
+#ifdef LOG_INFO
 		cerr << stream.first << ": " << stream.second.stream_name << "  raw size: " << stream.second.raw_size << "   packed size: " << str_size << endl;
-//#endif
+#endif
 	}
 
 	write_fixed(footer_size, f);
@@ -264,8 +264,8 @@ bool CArchive::AddPart(int stream_id, vector<uint8_t> &v_data, size_t metadata)
 {
 	lock_guard<mutex> lck(mtx);
 
-	m_streams[stream_id].parts.push_back(part_t(f_offset, v_data.size()));
-	m_streams[stream_id].signatures.push_back(signature(v_data) ^ metadata);
+	m_streams[stream_id].parts.emplace_back(f_offset, v_data.size());
+	m_streams[stream_id].signatures.emplace_back(signature(v_data) ^ metadata);
 
 	f_offset += write(metadata, f);
 
@@ -282,8 +282,8 @@ int CArchive::AddPartPrepare(int stream_id)
 {
 	lock_guard<mutex> lck(mtx);
 	
-	m_streams[stream_id].parts.push_back(part_t(0, 0));
-	m_streams[stream_id].signatures.push_back(0);
+	m_streams[stream_id].parts.emplace_back(0, 0);
+	m_streams[stream_id].signatures.emplace_back(0);
 
 	return (int) m_streams[stream_id].parts.size() - 1;
 }

@@ -3,9 +3,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 // Generic multithreading queues
@@ -18,6 +18,7 @@
 #include <atomic>
 #include <vector>
 #include <map>
+#include <functional>
 
 using namespace std;
 
@@ -98,7 +99,8 @@ public:
 //   * The queue can report whether it is in wainitng for new data state or there will be no new data
 template<typename T> class CRegisteringQueue
 {
-	typedef queue<T, deque<T>> queue_t;
+//	typedef queue<T, deque<T>> queue_t;
+	typedef list<T> queue_t;
 
 	queue_t q;
 	bool is_completed;
@@ -109,6 +111,8 @@ template<typename T> class CRegisteringQueue
 	condition_variable cv_queue_empty;
 
 public:
+	typename queue_t::iterator q_it;
+
 	// *****************************************************************************************
 	//
 	CRegisteringQueue(int _n_producers)
@@ -166,7 +170,8 @@ public:
 	{
 		unique_lock<mutex> lck(mtx);
 		bool was_empty = n_elements == 0;
-		q.push(data);
+//		q.push(data);
+		q.push_back(data);
 		++n_elements;
 
 		if(was_empty)
@@ -175,11 +180,16 @@ public:
 
 	// *****************************************************************************************
 	//
-	void Emplace(T data)
+	void Emplace(T &data)
 	{
-		Push(data);
+		unique_lock<mutex> lck(mtx);
+		bool was_empty = n_elements == 0;
+//		q.emplace(move(data));
+		q.emplace_back(move(data));
+		++n_elements;
 
-		// !!! To implement in the future
+		if (was_empty)
+			cv_queue_empty.notify_all();
 	}
 
 	// *****************************************************************************************
@@ -190,7 +200,8 @@ public:
 		bool was_empty = n_elements == 0;
 		
 		for(auto &x : data)
-			q.push(x);
+//			q.push(x);
+			q.push_back(x);
 		n_elements += data.size();
 
 		if (was_empty)
@@ -207,8 +218,40 @@ public:
 		if(n_elements == 0)
 			return false;
 
-		data = q.front();
-		q.pop();
+		data = move(q.front());
+//		q.pop();
+		q.pop_front();
+		--n_elements;
+		if(n_elements == 0)
+			cv_queue_empty.notify_all();
+
+		return true;
+	}
+
+	// *****************************************************************************************
+	//
+	template<typename S>
+	bool PopWithHint(T &data, const std::function<bool(S &item)> fo)
+	{
+		unique_lock<mutex> lck(mtx);
+		cv_queue_empty.wait(lck, [this]{return !this->q.empty() || !this->n_producers;}); 
+
+		if(n_elements == 0)
+			return false;
+
+		auto p = q.begin();
+		for (; p != q.end(); ++p)
+			if (fo(*p))
+				break;
+
+		if (p == q.end())
+			p = q.begin();
+
+		data = move(*p);
+		q.erase(p);
+
+//		data = move(q.front());
+//		q.pop_front();
 		--n_elements;
 		if(n_elements == 0)
 			cv_queue_empty.notify_all();

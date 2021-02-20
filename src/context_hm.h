@@ -3,9 +3,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include <mmintrin.h>
@@ -18,13 +18,17 @@
 #include "rc.h"
 #include "io.h"
 
+//#define ENABLE_CTX_HM_COUNTER
+
 // ************************************************************************************
 template<typename MODEL> class CContextHM {
 public:
 	typedef struct {
 		context_t ctx;
 		MODEL *rcm;
+#ifdef ENABLE_CTX_HM_COUNTER
 		size_t counter;
+#endif
 	} item_t;
 
 	typedef context_t key_type;
@@ -63,7 +67,11 @@ private:
 
 		for (size_t i = 0; i < old_allocated; ++i)
 			if (old_data[i].rcm != nullptr)
+#ifdef ENABLE_CTX_HM_COUNTER
 				insert(old_data[i].ctx, old_data[i].rcm, old_data[i].counter);
+#else
+				insert(old_data[i].ctx, old_data[i].rcm);
+#endif
 
 		delete[] old_data;
 		ht_memory -= old_allocated * sizeof(item_t);
@@ -90,7 +98,7 @@ public:
 		ht_total = 0;
 		ht_match = 0;
 
-		allocated = 1u << 10;
+		allocated = 1u << 5;
 		allocated_mask = allocated - 1;
 
 		size = 0;
@@ -98,7 +106,7 @@ public:
 		for (size_t i = 0; i < allocated; ++i)
 			data[i].rcm = nullptr;
 
-		max_fill_factor = 0.4;
+		max_fill_factor = 0.6;
 
 		ht_memory += allocated * sizeof(item_t);
 
@@ -131,7 +139,11 @@ public:
 		sort(v_ctx.begin(), v_ctx.end(), [](auto &x, auto &y) {return x.counter > y.counter; });
 	}
 
+#ifdef ENABLE_CTX_HM_COUNTER
 	bool insert(const context_t ctx, MODEL *rcm, size_t counter = 0)
+#else
+	bool insert(const context_t ctx, MODEL *rcm)
+#endif
 	{
 		if (size >= size_when_restruct)
 			restruct();
@@ -150,7 +162,9 @@ public:
 
 		data[h].ctx = ctx;
 		data[h].rcm = rcm;
+#ifdef ENABLE_CTX_HM_COUNTER
 		data[h].counter = counter;
+#endif
 
 		return true;
 	}
@@ -177,6 +191,7 @@ public:
 		return nullptr;
 	}
 
+#ifdef ENABLE_CTX_HM_COUNTER
 	MODEL* find_ext(const context_t ctx, size_t *&p_counter)
 	{
 		size_t h = hash(ctx);
@@ -204,6 +219,7 @@ public:
 
 		return nullptr;
 	}
+#endif
 
 	void prefetch(const context_t ctx)
 	{

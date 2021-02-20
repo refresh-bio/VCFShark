@@ -12,6 +12,9 @@ VCFShark requires:
 * A modern, C++14 ready compiler such as `g++` version 7.2 or higher or `clang` version 3.4 or higher.
 * A 64-bit operating system. Either Mac OS X or Linux are currently supported.
 
+We highly recommend using libdeflate, as it (mainly) speeds up creating the BCF output file (it does not have influence on decompression to VCF file). 
+By default it is assumed that libdeflate is installed. Nevertheless, it is optional. To build VCFShark without libdeflate add `--without-libdeflate` flag to `./configure` command in the `./install.sh` script AND remove `-ldeflate` flag in the `CLINK` variable in the `makefile`.   
+
 Installation
 --------------
 
@@ -101,6 +104,32 @@ To decompress the `toy.vcfshark`  archive to a VCF file `toy_decomp.vcf`:
 
 For more options see Usage section.
 
+Large examples
+--------------
+The scripts in the `large_ex` folder can be used to test VCFShark on real data.
+Each folder within the `large_ex` folder  contains a script to download a VCF file, run the VCFShark compression and decompression, and check if the resulting VCF file contains the same data as the input VCF file. 
+
+For more details see the README in the `large_ex` folder.
+
+#### Example procedure to run VCFShark on 1000GPp3 chr22 VCF file (from phase 3 of 1000 Genomes Project). 
+
+(Note: on macOS it may be necessary to change `MD5` variable in `check` script to `md5`.)
+
+1. Build VCFShark in the main VCFShark folder, according to instructions:
+```
+./install.sh 
+make
+```
+2. Change directory to `large-ex`, download and build bcftools (required by `check` script and to fix some of the VCF files).
+```
+cd large-ex
+./get_bcftools
+```
+3. Change the directory to folder with chosen data and run the available script:
+```
+cd 1000GPp3
+./run_1000GPp3
+```
 
 Dockerfile
 --------------
@@ -128,7 +157,7 @@ Note: The Docker image is not intended as a way of using VCFShark. It can be use
 Developers
 --------------
 The VCFShark algorithm was invented by [Sebastian Deorowicz](https://github.com/sebastiandeorowicz) and [Agnieszka Danek](https://github.com/agnieszkadanek).
-The implementation is by Sebastian Deorowicz and Agnieszka Danek.
+The implementation is by Sebastian Deorowicz, Agnieszka Danek and Marek Kokot.
 
 
 

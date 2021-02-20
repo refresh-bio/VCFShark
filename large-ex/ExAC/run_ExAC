@@ -1,0 +1,27 @@
+# This script:
+# 1. Downloads VCF file from Exome Aggregation Consortium (ExAC).
+# 2. Repairs the VCF file (so it complies with the VCF specification)
+# 3. Compress the VCF file with VCFShark
+# 4. Decompress the archive with VCFShark
+# 5. Checks if the input VCF file and the VCF file decompressed from the VCFShark archive contain the same data.
+
+#Path to VCFShark
+VCFSHARK=../../vcfshark
+
+#Path to bcftools (used to add missing header lines to the input VCF file)
+BCFTOOLS=../bcftools
+
+echo "Downloading the VCF file"
+wget https://storage.googleapis.com/gnomad-public/legacy/exac_browser/ExAC.r1.sites.vep.vcf.gz
+
+echo "Repairing VCF file: adding missing header lines using bcftools"
+$BCFTOOLS annotate -h missing_header ExAC.r1.sites.vep.vcf.gz -O z --no-version -o REPAIRED_ExAC.r1.sites.vep.vcf.gz
+
+echo "VCFShark compression"
+$VCFSHARK compress REPAIRED_ExAC.r1.sites.vep.vcf.gz exac.vcfshark
+
+echo "VCFShark decompression"
+$VCFSHARK decompress -b  exac.vcfshark exac.vcfshark.vcf.gz
+
+echo "Checking if compression/decompression works"
+../check REPAIRED_ExAC.r1.sites.vep.vcf.gz   exac.vcfshark.vcf.gz  

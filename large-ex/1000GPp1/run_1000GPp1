@@ -1,0 +1,27 @@
+# This script:
+# 1. Downloads chr22 VCF file from 1000GPp1
+# 2. Repairs the VCF file (so it complies with the VCF specification)
+# 3. Compress the VCF file with VCFShark
+# 4. Decompress the archive with VCFShark
+# 5. Checks if the input VCF file and the VCF file decompressed from the VCFShark archive contain the same data.
+
+#Path to VCFShark
+VCFSHARK=../../vcfshark
+
+#Path to bcftools (used to add missing header lines to the input VCF file)
+BCFTOOLS=../bcftools
+
+echo "Downloading the VCF file"
+wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/integrated_call_sets/ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz
+
+echo "Repairing VCF file: adding missing header lines using bcftools"
+$BCFTOOLS annotate -h missing_header  ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz  -O z --no-version -o REPAIRED_ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz
+
+echo "VCFShark compression"
+$VCFSHARK compress  REPAIRED_ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz  1000GPp1_chr22.vcfshark
+
+echo "VCFShark decompression"
+$VCFSHARK decompress -b  1000GPp1_chr22.vcfshark 1000GPp1_chr22.vcfshark.decomp.vcf.gz 
+
+echo "Checking if compression/decompression works"
+../check REPAIRED_ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz 1000GPp1_chr22.vcfshark.decomp.vcf.gz 

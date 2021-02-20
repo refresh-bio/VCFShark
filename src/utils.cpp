@@ -2,9 +2,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include "utils.h"
@@ -25,7 +25,6 @@ long int strtol(const char* str, char** endptr, int base) noexcept
 	{
 		std::cerr << "unsuported base " << base << std::endl;
 		fflush(stdout);
-		getchar();
 		exit(1);
 	}
 

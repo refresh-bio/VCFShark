@@ -3,9 +3,9 @@
 // This file is a part of VCFShark software distributed under GNU GPL 3 licence.
 // The homepage of the VCFShark project is https://github.com/refresh-bio/VCFShark
 //
-// Author : Sebastian Deorowicz and Agnieszka Danek
-// Version: 1.0
-// Date   : 2020-12-18
+// Authors: Sebastian Deorowicz, Agnieszka Danek, Marek Kokot
+// Version: 1.1
+// Date   : 2021-02-18
 // *******************************************************************************************
 
 #include "params.h"
@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <htslib/hts.h>
 #include <htslib/vcf.h>
+#include <iostream>
 
 using namespace std;
 
@@ -30,9 +31,8 @@ typedef struct key_desc_tag {
 // ************************************************************************************
 typedef struct field_desc_tag {
     bool present = false;  // true if present in description
-    char * data = nullptr;
+    char *data = nullptr;
     uint32_t data_size = 0; //current size of allocated memory
-
 } field_desc;
 
 typedef struct variant_desc_tag {
@@ -78,9 +78,11 @@ typedef struct variant_desc_tag {
 // ************************************************************************************
 class CVCF
 {
-    htsFile * vcf_file;
-    bcf1_t * rec;
-    int ploidy;
+	friend class CVCFIO;
+
+	htsFile* vcf_file;
+	bcf1_t* rec;
+	int ploidy;
     
     bool first_variant;
     int curr_alt_number; //allele from ALT field (from 1)
@@ -95,8 +97,7 @@ class CVCF
     int  ndst_flag = 0;
     
 public:
-    
-    bcf_hdr_t * vcf_hdr;
+    bcf_hdr_t *vcf_hdr;
     
 	CVCF();
 	~CVCF();
@@ -143,11 +144,16 @@ public:
 	// * bit 4:
 	//     0 - no phasing info
 	//     1 - data phase
-	bool GetVariant(variant_desc_t &desc, vector<field_desc> &fields,  std::unordered_map<int, uint32_t> &FilterIdToFieldId, std::unordered_map<int, uint32_t> &InfoIdToFieldId, 
-		std::unordered_map<int, uint32_t> &FormatIdToFieldId);
+	bool GetVariant(variant_desc_t &desc, vector<field_desc> &fields, 
+		std::vector<int> &FilterIdToFieldId, std::vector<int> &InfoIdToFieldId, std::vector<int> &FormatIdToFieldId);
+
+	bool GetVariantFromRec(bcf1_t *rec, variant_desc_t &desc, vector<field_desc> &fields, 
+		std::vector<int> &FilterIdToFieldId, std::vector<int> &InfoIdToFieldId, std::vector<int> &FormatIdToFieldId);
 
 	// Store info about variant - parameters the same as for GetVariant
-	bool SetVariant(variant_desc_t &desc, vector<field_desc> &fields, vector<key_desc> keys);
+	bool SetVariant(variant_desc_t &desc, vector<field_desc> &fields, vector<key_desc> &keys);
+	
+	bool SetVariantToRec(bcf1_t* rec, variant_desc_t &desc, vector<field_desc> &fields, vector<key_desc> &keys);
 	
 	// Get vector with sample names
 	bool GetSamplesList(vector<string> &s_list);
@@ -157,6 +163,64 @@ public:
     
 	// Add a single sample name
 	bool AddSample(string &s_name);
+};
+
+// ************************************************************************************
+class CVCFIO
+{
+	htsFile* vcf_file;
+	bcf_hdr_t* vcf_hdr;
+
+public:
+	CVCFIO()
+	{
+		vcf_file = nullptr;
+		vcf_hdr = nullptr;
+	}
+	
+	~CVCFIO()
+	{};
+
+	void Connect(CVCF* vcf)
+	{
+		vcf_file = vcf->vcf_file;
+		vcf_hdr = vcf->vcf_hdr;
+	}
+	
+	bool LoadRecord(bcf1_t* rec)
+	{
+		if (rec == nullptr)
+			return false;
+
+		bcf_clear(rec);
+		if (bcf_read(vcf_file, vcf_hdr, rec) == -1)
+			return false;
+
+		if (rec->errcode)
+		{
+			std::cerr << "Error in VCF file\n";
+			exit(1);
+		}
+		bcf_unpack((bcf1_t*)rec, BCF_UN_ALL);
+
+		return true;
+	}
+
+	bool StoreRecord(bcf1_t* rec)
+	{
+		return bcf_write(vcf_file, vcf_hdr, rec) == 0;
+	}
+
+	bcf1_t* InitRecord()
+	{
+		return bcf_init();
+	}
+
+	void ReleaseRecord(bcf1_t* rec)
+	{
+		bcf_clear(rec);
+		bcf_destroy(rec);
+	}
 };
 
 // EOF
