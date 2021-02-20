@@ -15,15 +15,12 @@ endif
 
 ifeq ($(uname_S),Linux)
 	BSC_LIB_DIR=libbsc/linux
-	MIMALLOC_LIB=mimalloc/linux
 	ALLOC=jemalloc/linux/libjemalloc.a
 	ALLOC_CLINK=-Wl,--no-as-needed -ldl
 endif
 
 ifeq ($(uname_S),Darwin)
 	BSC_LIB_DIR=libbsc/macos
-	MIMALLOC_LIB=mimalloc/macos
-	ALLOC=mimalloc/macos/libmimalloc.a
 	ALLOC_CLINK=
 endif
 
