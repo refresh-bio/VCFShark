@@ -156,8 +156,11 @@ Note: The Docker image is not intended as a way of using VCFShark. It can be use
 
 Developers
 --------------
-The VCFShark algorithm was invented by [Sebastian Deorowicz](https://github.com/sebastiandeorowicz) and [Agnieszka Danek](https://github.com/agnieszkadanek).
+The VCFShark algorithm was invented by Sebastian Deorowicz and Agnieszka Danek.
 The implementation is by Sebastian Deorowicz, Agnieszka Danek and Marek Kokot.
 
 
-
+## Citing
+<a href="https://doi.org/10.1093/bioinformatics/btab211">
+Deorowicz, S., Danek, A., Kokot, M. (2021) VCFShark: how to squeeze a VCF file. Bioinformatics 37: 3358&ndash;3360.
+</a>
