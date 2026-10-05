@@ -1,5 +1,7 @@
 # VCFShark:  how to squeeze a VCF file
 
+[![Bioinformatics 10.1093/bioinformatics/btab211](https://img.shields.io/badge/Bioinformatics%202021-10.1093%2Fbioinformatics%2Fbtab211-blue)](https://doi.org/10.1093/bioinformatics/btab211)
+
 VCFShark is a tool to compress any VCF file. It achieves compression ratios up to an order of magnitude better than the de facto standards (gzipped VCF and BCF).
 
 As an input it takes a VCF (or VCF.GZ or BCF) file. 
